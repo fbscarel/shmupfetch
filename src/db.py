@@ -4,7 +4,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from .config import DB_PATH, ROM_DIR, SHMUPARCH_PATH
+from .config import DB_PATH, GAMES_DB_PATH, ROM_DIR
 
 
 class GameDatabase:
@@ -217,14 +217,14 @@ def get_existing_games(db: GameDatabase, games: list[dict]) -> list[dict]:
     return [g for g in games if g["rom_name"] in local_roms]
 
 
-def generate_shmuparch_entries(games: list[dict]) -> str:
-    """Generate Python dict entries for shmuparch.py GAMES dict.
+def generate_games_db_entries(games: list[dict]) -> str:
+    """Generate Python _add(Game(...)) entries for games_db.py.
 
     Args:
         games: List of game dicts with rom_name, display_name, developer, orientation
 
     Returns:
-        Python code string for GAMES dict entries
+        Python code string for games_db.py entries
     """
     lines = []
     current_developer = None
@@ -239,87 +239,105 @@ def generate_shmuparch_entries(games: list[dict]) -> str:
         if developer != current_developer:
             if current_developer is not None:
                 lines.append("")
-            lines.append(f"    # === {developer} ===")
+            lines.append(f"# === {developer.upper()} (shmupfetch) ===")
+            lines.append("")
             current_developer = developer
 
         rom_name = game["rom_name"]
         display_name = game.get("display_name", rom_name)
         orientation = game.get("orientation", 1)
+        orient_str = "Orientation.TATE" if orientation == 1 else "Orientation.YOKO"
 
         # Escape quotes in display name
         display_name = display_name.replace('"', '\\"')
 
-        lines.append(f'    "{rom_name}": ("{display_name}", "{developer}", {orientation}),')
+        lines.append(f'_add(Game(')
+        lines.append(f'    name="{display_name}",')
+        lines.append(f'    developer="{developer}",')
+        lines.append(f'    year=0,  # TODO: add year')
+        lines.append(f'    platform=Platform.ARCADE,')
+        lines.append(f'    rom_name="{rom_name}",')
+        lines.append(f'    orientation={orient_str},')
+        lines.append(f'))')
+        lines.append('')
 
     return "\n".join(lines)
 
 
-def update_shmuparch_file(games: list[dict], shmuparch_path: Path = SHMUPARCH_PATH) -> bool:
-    """Update shmuparch.py GAMES dict with new entries.
+def update_games_db_file(games: list[dict], games_db_path: Path = GAMES_DB_PATH) -> bool:
+    """Update games_db.py with new game entries.
 
     Args:
         games: List of game dicts to add
-        shmuparch_path: Path to shmuparch.py
+        games_db_path: Path to games_db.py
 
     Returns:
         True if successful, False otherwise
     """
-    if not shmuparch_path.exists():
-        print(f"shmuparch.py not found at {shmuparch_path}")
+    if not games_db_path.exists():
+        print(f"games_db.py not found at {games_db_path}")
         return False
 
-    content = shmuparch_path.read_text()
-
-    # Find existing GAMES dict
-    games_match = re.search(r"^GAMES\s*=\s*\{", content, re.MULTILINE)
-    if not games_match:
-        print("Could not find GAMES dict in shmuparch.py")
-        return False
+    content = games_db_path.read_text()
 
     # Get existing ROM names to avoid duplicates
-    existing_roms = set(re.findall(r'"([a-z0-9_]+)":\s*\(', content))
+    existing_roms = get_games_db_roms(games_db_path)
 
     # Filter to only new games
     new_games = [g for g in games if g["rom_name"] not in existing_roms]
 
     if not new_games:
-        print("All games already in shmuparch.py")
+        print("All games already in games_db.py")
         return True
 
     # Generate entries for new games
-    entries = generate_shmuparch_entries(new_games)
+    entries = generate_games_db_entries(new_games)
 
-    # Find the closing brace of GAMES dict
-    # Look for the pattern: last entry followed by }
-    # We'll insert before the closing }
-    games_end = re.search(r"\n(\s*)\}\s*\n", content[games_match.start() :])
-    if not games_end:
-        print("Could not find end of GAMES dict")
-        return False
+    # Append to end of file
+    with open(games_db_path, "a") as f:
+        f.write("\n\n# =============================================================================\n")
+        f.write("# SHMUPFETCH ADDITIONS\n")
+        f.write("# =============================================================================\n\n")
+        f.write(entries)
 
-    insert_pos = games_match.start() + games_end.start()
-
-    # Insert new entries before closing brace
-    new_content = content[:insert_pos] + "\n" + entries + "\n" + content[insert_pos:]
-
-    # Write back
-    shmuparch_path.write_text(new_content)
-    print(f"Added {len(new_games)} games to {shmuparch_path}")
-
+    print(f"Added {len(new_games)} games to {games_db_path}")
     return True
 
 
-def get_shmuparch_games(shmuparch_path: Path = SHMUPARCH_PATH) -> set[str]:
-    """Get set of ROM names already in shmuparch.py.
+def get_games_db_roms(games_db_path: Path = GAMES_DB_PATH) -> set[str]:
+    """Get set of ROM names already in games_db.py.
 
     Args:
-        shmuparch_path: Path to shmuparch.py
+        games_db_path: Path to games_db.py
 
     Returns:
-        Set of ROM names
+        Set of ROM names (from rom_name= and GameVersion entries)
     """
-    if not shmuparch_path.exists():
+    if not games_db_path.exists():
         return set()
 
-    content = shmuparch_path.read_text()
-    return set(re.findall(r'"([a-z0-9_]+)":\s*\(', content))
+    content = games_db_path.read_text()
+
+    # Find rom_name="..." patterns
+    rom_names = set(re.findall(r'rom_name="([a-z0-9_]+)"', content))
+
+    # Also find GameVersion("romname", ...) patterns
+    version_roms = set(re.findall(r'GameVersion\("([a-z0-9_]+)"', content))
+
+    return rom_names | version_roms
+
+
+# Legacy aliases for compatibility
+def generate_shmuparch_entries(games: list[dict]) -> str:
+    """Legacy alias for generate_games_db_entries."""
+    return generate_games_db_entries(games)
+
+
+def update_shmuparch_file(games: list[dict], shmuparch_path: Path = GAMES_DB_PATH) -> bool:
+    """Legacy alias for update_games_db_file."""
+    return update_games_db_file(games, shmuparch_path)
+
+
+def get_shmuparch_games(shmuparch_path: Path = GAMES_DB_PATH) -> set[str]:
+    """Legacy alias for get_games_db_roms."""
+    return get_games_db_roms(shmuparch_path)

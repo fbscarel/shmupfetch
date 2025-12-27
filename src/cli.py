@@ -7,12 +7,12 @@ from pathlib import Path
 from .config import DEVELOPERS, ROM_DIR
 from .db import (
     GameDatabase,
-    generate_shmuparch_entries,
+    generate_games_db_entries,
     get_existing_games,
+    get_games_db_roms,
     get_missing_games,
-    get_shmuparch_games,
     scan_rom_directory,
-    update_shmuparch_file,
+    update_games_db_file,
 )
 from .mdk import download_rom, fetch_developer_games, get_session
 from .tui import confirm_action, select_developer, select_games
@@ -61,7 +61,7 @@ def main():
     parser.add_argument(
         "--generate",
         action="store_true",
-        help="Generate shmuparch.py GAMES dict entries for local ROMs",
+        help="Generate games_db.py entries for local ROMs",
     )
     parser.add_argument(
         "-o",
@@ -122,12 +122,10 @@ def main():
             return
 
         print(f"\nGenerating entries for {len(local_games)} games...")
-        entries = generate_shmuparch_entries(local_games)
+        entries = generate_games_db_entries(local_games)
 
-        print("\n# Add these entries to shmuparch.py GAMES dict:")
-        print("GAMES = {")
+        print("\n# Add these entries to games_db.py:")
         print(entries)
-        print("}")
 
         db.close()
         return
@@ -210,30 +208,30 @@ def main():
         db.close()
         return
 
-    # Check what's already in shmuparch.py
-    shmuparch_games = get_shmuparch_games()
+    # Check what's already in games_db.py
+    existing_db_roms = get_games_db_roms()
 
-    # Find games that exist locally but aren't in shmuparch.py yet
+    # Find games that exist locally but aren't in games_db.py yet
     local_games = get_existing_games(db, all_games)
-    games_to_add = [g for g in local_games if g["rom_name"] not in shmuparch_games]
+    games_to_add = [g for g in local_games if g["rom_name"] not in existing_db_roms]
 
     # Find games that need downloading
     missing_games = get_missing_games(db, all_games)
 
     print(f"\nSummary:")
     print(f"  {len(local_games)} games exist locally")
-    print(f"  {len(games_to_add)} need to be added to shmuparch.py")
+    print(f"  {len(games_to_add)} need to be added to games_db.py")
     print(f"  {len(missing_games)} missing from local ROM directory")
 
-    # First, update shmuparch.py with existing local games
+    # First, update games_db.py with existing local games
     if games_to_add:
         if args.yes:
-            update_shmuparch_file(games_to_add)
-        elif confirm_action(f"Add {len(games_to_add)} games to shmuparch.py?"):
-            if update_shmuparch_file(games_to_add):
-                print("shmuparch.py updated!")
+            update_games_db_file(games_to_add)
+        elif confirm_action(f"Add {len(games_to_add)} games to games_db.py?"):
+            if update_games_db_file(games_to_add):
+                print("games_db.py updated!")
             else:
-                entries = generate_shmuparch_entries(games_to_add)
+                entries = generate_games_db_entries(games_to_add)
                 print("\n# Add these entries manually:")
                 print(entries)
 
@@ -284,16 +282,16 @@ def main():
     if failed:
         print(f"Failed: {', '.join(failed)}")
 
-    # Update shmuparch.py with newly downloaded games
+    # Update games_db.py with newly downloaded games
     if success > 0:
         downloaded_games = [g for g in to_download if g["rom_name"] not in failed]
         if args.yes:
-            update_shmuparch_file(downloaded_games)
-        elif confirm_action("Add downloaded games to shmuparch.py?"):
-            if update_shmuparch_file(downloaded_games):
-                print("shmuparch.py updated!")
+            update_games_db_file(downloaded_games)
+        elif confirm_action("Add downloaded games to games_db.py?"):
+            if update_games_db_file(downloaded_games):
+                print("games_db.py updated!")
             else:
-                entries = generate_shmuparch_entries(downloaded_games)
+                entries = generate_games_db_entries(downloaded_games)
                 print("\n# Add these entries manually:")
                 print(entries)
 

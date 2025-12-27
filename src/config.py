@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Paths
 ROM_DIR = Path("/mnt/z/roms/arcade")
-SHMUPARCH_PATH = Path.home() / "src" / "shmuparch" / "shmuparch.py"
+GAMES_DB_PATH = Path.home() / "src" / "shmuparch" / "games_db.py"
 DB_PATH = Path.home() / ".cache" / "shmupfetch" / "games.db"
 
 # mdk.cab configuration
@@ -100,6 +100,56 @@ DEVELOPERS = {
     "Nichibutsu": [
         "Nihon+Bussan+Co.",
         "Nichibutsu",
+    ],
+    # === Additional shmup developers ===
+    "ADK": [
+        "ADK",
+        "ADK+%252F+SNK",
+    ],
+    "Aicom": [
+        "Aicom",
+        "Sammy+%252F+Aicom",
+    ],
+    "Allumer": [
+        "Allumer",
+        "Allumer+%252F+Taito+America+Corporation",
+        "Allumer+%252F+Taito+Corporation",
+        "Allumer+%252F+Tecmo",
+    ],
+    "Athena": [
+        "Athena",
+        "Athena+(Visco+license)",
+        "Athena+%252F+Tecmo",
+    ],
+    "Face": [
+        "Face",
+    ],
+    "Gazelle": [
+        "Gazelle+(Banpresto+license)",
+    ],
+    "Namco": [
+        "Namco",
+    ],
+    "Takumi": [
+        "Takumi",
+        "Takumi+(Capcom+license)",
+    ],
+    "Warashi": [
+        "Kaneko+%252F+Warashi",
+    ],
+    "Yumekobo": [
+        "Yumekobo",
+        "Yumekobo+%252F+Saurus",
+    ],
+    "East Technology": [
+        "East+Technology",
+    ],
+    "Success": [
+        "Success",
+        "Success+%252F+Sega",
+    ],
+    "UPL": [
+        "UPL",
     ],
 }
 
